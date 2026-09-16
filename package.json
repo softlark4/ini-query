@@ -1,0 +1,21 @@
+{
+  "name": "ini-query",
+  "version": "0.1.0",
+  "description": "Command-line and library tool for querying a single value out of an INI file, with precise parse errors.",
+  "type": "module",
+  "main": "./dist/query.js",
+  "types": "./dist/query.d.ts",
+  "bin": {
+    "ini-query": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}
