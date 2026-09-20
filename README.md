@@ -113,6 +113,12 @@ npm install
 npm run build
 ```
 
+Tests use Node's built-in test runner, so there's nothing extra to install:
+
+```
+npm test
+```
+
 ## License
 
 MIT, see LICENSE.
