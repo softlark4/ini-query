@@ -100,8 +100,13 @@ const entry = find(source, "server.host", "config.ini");
 - Keys: `key = value` or `key: value`. The first `=` or `:` on the line is
   the separator.
 - Comments: a whole line starting with `;` or `#` (no inline comments yet).
-- No support yet for quoted values, line continuations, or escape
-  sequences — those are on the list below.
+- Quoted values: `key = "some value"` or `key = 'some value'`. Quoting
+  preserves leading/trailing spaces that would otherwise be trimmed, and
+  either quote character can contain the other one unescaped. Recognized
+  escapes: `\n`, `\t`, `\r`, `\0`, `\\`, `\"`, `\'`. Nothing may follow the
+  closing quote except whitespace.
+- No support yet for line continuations. Inline comments after a value are
+  also not supported yet — that's next.
 
 ## Building
 

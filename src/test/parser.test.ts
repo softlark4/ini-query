@@ -131,3 +131,56 @@ test("parse error message points at the offending line with a caret", () => {
   assert.match(err.message, /no separator here/);
   assert.match(err.message, /\^/);
 });
+
+test("a double-quoted value keeps its inner leading and trailing spaces", () => {
+  const parsed = parseIni('[a]\nkey = "  value  "\n');
+  assert.equal(parsed.sections.get("a")?.entries.get("key")?.value, "  value  ");
+});
+
+test("a single-quoted value works the same as a double-quoted one", () => {
+  const parsed = parseIni("[a]\nkey = 'value'\n");
+  assert.equal(parsed.sections.get("a")?.entries.get("key")?.value, "value");
+});
+
+test("a quoted value can contain the other quote character unescaped", () => {
+  const parsed = parseIni(`[a]\nkey = "it's fine"\n`);
+  assert.equal(parsed.sections.get("a")?.entries.get("key")?.value, "it's fine");
+});
+
+test("escape sequences in a quoted value are decoded", () => {
+  const parsed = parseIni('[a]\nkey = "line one\\nline two\\ttabbed\\\\literal\\"quote"\n');
+  assert.equal(parsed.sections.get("a")?.entries.get("key")?.value, 'line one\nline two\ttabbed\\literal"quote');
+});
+
+test("the column of a quoted value points at the opening quote", () => {
+  const parsed = parseIni('[a]\nkey = "value"\n');
+  const entry = parsed.sections.get("a")?.entries.get("key");
+  assert.equal(entry?.line, 2);
+  assert.equal(entry?.column, 7);
+});
+
+test("rejects an unterminated quoted value", () => {
+  assert.throws(() => parseIni('[a]\nkey = "value\n'), (err: unknown) => {
+    assert.ok(err instanceof IniParseError);
+    assert.equal(err.line, 2);
+    assert.equal(err.column, 7);
+    assert.match(err.message, /unterminated quoted value/);
+    return true;
+  });
+});
+
+test("rejects an unknown escape sequence in a quoted value", () => {
+  assert.throws(() => parseIni('[a]\nkey = "bad\\x"\n'), (err: unknown) => {
+    assert.ok(err instanceof IniParseError);
+    assert.match(err.message, /unknown escape sequence '\\x'/);
+    return true;
+  });
+});
+
+test("rejects trailing text after a quoted value's closing quote", () => {
+  assert.throws(() => parseIni('[a]\nkey = "value" extra\n'), (err: unknown) => {
+    assert.ok(err instanceof IniParseError);
+    assert.match(err.message, /unexpected text after closing quote: 'extra'/);
+    return true;
+  });
+});

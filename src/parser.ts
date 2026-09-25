@@ -143,8 +143,13 @@ export function parseIni(source: string, filename?: string): ParsedIni {
 
     const rawValue = rawLine.slice(separatorIndex + 1);
     const valueLeading = rawValue.length - rawValue.trimStart().length;
-    const value = rawValue.trim();
     const valueColumn = separatorIndex + 2 + valueLeading;
+    const trimmedValue = rawValue.trimStart();
+
+    const value =
+      trimmedValue[0] === '"' || trimmedValue[0] === "'"
+        ? parseQuotedValue(trimmedValue, lineNumber, valueColumn, source, filename)
+        : trimmedValue.trim();
 
     currentEntries.set(key, { value, line: lineNumber, column: valueColumn });
     currentKeyOrder.push(key);
@@ -161,4 +166,63 @@ function findSeparator(line: string, from: number): number {
     if (ch === "=" || ch === ":") return i;
   }
   return -1;
+}
+
+// Recognized inside a quoted value. Single and double quotes both accept the
+// same escapes; the only difference between them is which character needs
+// escaping to appear literally.
+const ESCAPES: Readonly<Record<string, string>> = {
+  n: "\n",
+  t: "\t",
+  r: "\r",
+  "0": "\0",
+  "\\": "\\",
+  '"': '"',
+  "'": "'",
+};
+
+// `text` is the value portion of the line starting at its first non-space
+// character, i.e. text[0] is the opening quote. `column` is that quote's
+// 1-based column, used to report escape and termination errors precisely.
+function parseQuotedValue(text: string, line: number, column: number, source: string, filename?: string): string {
+  const quote = text[0];
+  let result = "";
+  let i = 1;
+
+  while (i < text.length) {
+    const ch = text[i];
+
+    if (ch === quote) {
+      const rest = text.slice(i + 1);
+      const trailing = rest.trimStart();
+      if (trailing.length > 0) {
+        const offset = rest.length - trailing.length;
+        throw new IniParseError(
+          `unexpected text after closing quote: '${trailing.trimEnd()}'`,
+          line,
+          column + i + 1 + offset,
+          source,
+          filename,
+        );
+      }
+      return result;
+    }
+
+    if (ch === "\\") {
+      const next = text[i + 1];
+      if (next === undefined) break;
+      const escaped = ESCAPES[next];
+      if (escaped === undefined) {
+        throw new IniParseError(`unknown escape sequence '\\${next}'`, line, column + i, source, filename);
+      }
+      result += escaped;
+      i += 2;
+      continue;
+    }
+
+    result += ch;
+    i++;
+  }
+
+  throw new IniParseError(`unterminated quoted value, expected a closing ${quote}`, line, column, source, filename);
 }
